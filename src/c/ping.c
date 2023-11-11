@@ -212,7 +212,8 @@ int icmp_ping(const char * address, int timeout_ms, double * duration_ms)
 
     icmp_send(socket_fd, &sock_addr, &packet, sizeof(packet));
 
-    while (true) // until deadline
+    bool done = false;
+    while (!done)
     {
         char buffer[1024];
         int data_received = icmp_receive(socket_fd, &buffer[0], raw_icmp_response_length);
@@ -223,6 +224,10 @@ int icmp_ping(const char * address, int timeout_ms, double * duration_ms)
         // }
         clock_gettime(CLOCK_MONOTONIC, &stop_timestamp);
         *duration_ms = get_difference_ms(&start_timestamp, &stop_timestamp);
+        if (*duration_ms > timeout_ms)
+        {
+            done = true;
+        }
         if (data_received == raw_icmp_response_length)
         {
             const struct ping_pkt * data = (const struct ping_pkt *)&buffer[ip_header_length];
@@ -234,7 +239,10 @@ int icmp_ping(const char * address, int timeout_ms, double * duration_ms)
             printf("  warning unrelated message received of %d bytes with id %d.\n", data_received, data->hdr.un.echo.id);
             continue;
         }
-        printf("  warning unrelated message received of %d bytes.\n", data_received);
+        if (data_received > 0)
+        {
+            printf("  warning unrelated message received of %d bytes.\n", data_received);
+        }
     }
     close(socket_fd);
     return -2;
