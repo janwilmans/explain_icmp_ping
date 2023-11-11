@@ -30,7 +30,6 @@ std::string to_hex_string(std::string_view data)
     }
 
     result += ';';
-
     for (auto c : data)
     {
         if (c < 32)
@@ -80,14 +79,16 @@ public:
         m_socket_fd = ::socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
         if (m_socket_fd < 0)
         {
-            throw std::runtime_error(
-                fmt::format("descriptor for icmp_socket to '{}' could not be "
-                            "created. (requires root)",
-                            m_address));
+            throw std::runtime_error(fmt::format("descriptor for icmp_socket to '{}' could not be "
+                                                 "created. (requires root)",
+                                                 m_address));
         }
     }
 
-    ~icmp_socket() { ::close(m_socket_fd); }
+    ~icmp_socket()
+    {
+        ::close(m_socket_fd);
+    }
 
     void dns_lookup_and_store_address()
     {
@@ -95,8 +96,7 @@ public:
         hostent * host_entity = gethostbyname(m_address.data());
         if (host_entity == NULL)
         {
-            throw std::runtime_error(
-                fmt::format("gethostbyname for '{}' failed.", m_address));
+            throw std::runtime_error(fmt::format("gethostbyname for '{}' failed.", m_address));
         }
         m_name = inet_ntoa(*(struct in_addr *)host_entity->h_addr);
 
@@ -129,21 +129,17 @@ public:
         tv_out.tv_usec = useconds;
         if (!set_socket_option(SOL_SOCKET, SO_RCVTIMEO, tv_out))
         {
-            throw std::runtime_error(
-                fmt::format("could not set receive timeout to '{}'ms", total_ms));
+            throw std::runtime_error(fmt::format("could not set receive timeout to '{}'ms", total_ms));
         }
     }
 
     std::vector<char> receive(size_t bytes)
     {
         m_receive_buffer.resize(bytes);
-        auto bytes_received =
-            recvfrom(m_socket_fd, &m_receive_buffer[0], m_receive_buffer.size(), 0,
-                     nullptr, nullptr);
+        auto bytes_received = recvfrom(m_socket_fd, &m_receive_buffer[0], m_receive_buffer.size(), 0, nullptr, nullptr);
         if (bytes_received <= 0)
         {
-            return {}; // return empty meaning, we received no reply within the
-                       // timeout
+            return {}; // return empty meaning, we received no reply within the timeout
         }
         m_receive_buffer.resize(bytes_received);
         return m_receive_buffer;
@@ -151,12 +147,10 @@ public:
 
     void send(const void * data, size_t size)
     {
-        auto result = ::sendto(m_socket_fd, data, size, 0,
-                               (sockaddr *)&m_sockaddr_in, sizeof(m_sockaddr_in));
+        auto result = ::sendto(m_socket_fd, data, size, 0, (sockaddr *)&m_sockaddr_in, sizeof(m_sockaddr_in));
         if (result <= 0)
         {
-            throw std::runtime_error(
-                fmt::format("could not send packet to '{}'", m_address));
+            throw std::runtime_error(fmt::format("could not send packet to '{}'", m_address));
         }
     }
 
@@ -192,10 +186,8 @@ ping_pkt make_icmp_packet()
     icmp_packet.hdr.un.echo.id = getpid();
     icmp_packet.hdr.un.echo.sequence = 0;
 
-    // the payload is arbitrary, it can be any data but it is good practice to
-    // send something recognizable like a string.
-    // its important to make sure to calculate the checksum _after_ filling the
-    // payload.
+    // the payload is arbitrary, it can be any data but it is good practice to send some recognizable string.
+    // its important to make sure to calculate the checksum _after_ filling the payload.
     for (size_t i = 0; i < icmp_payload_length; ++i)
     {
         icmp_packet.payload[i] = static_cast<char>('0' + i);
@@ -206,8 +198,7 @@ ping_pkt make_icmp_packet()
 
 // when sending icmp ping packets using raw sockets verifing the echo.id is
 // required otherwise you maybe looking at unrelated ping replys
-bool verify_reply(const ping_pkt & sent, const ping_pkt & received,
-                  int expected_id)
+bool verify_reply(const ping_pkt & sent, const ping_pkt & received, int expected_id)
 {
     if (received.hdr.type != ICMP_ECHOREPLY)
     {
@@ -221,16 +212,14 @@ bool verify_reply(const ping_pkt & sent, const ping_pkt & received,
     {
         return false;
     }
-    if (memcmp(&sent.payload[0], &received.payload[0], icmp_payload_length) !=
-        0)
+    if (memcmp(&sent.payload[0], &received.payload[0], icmp_payload_length) != 0)
     {
         return false;
     }
     return true;
 }
 
-std::optional<double_milliseconds> ping(const std::string & address,
-                                        std::chrono::milliseconds timeout)
+std::optional<double_milliseconds> ping(const std::string & address, std::chrono::milliseconds timeout)
 {
     auto deadline = std::chrono::steady_clock::now() + timeout;
     icmp_socket socket(address);
@@ -242,8 +231,7 @@ std::optional<double_milliseconds> ping(const std::string & address,
 
     auto packet = make_icmp_packet();
     // fmt::print("  send {} bytes with id {}.\n", sizeof(packet),
-    // packet.hdr.un.echo.id); fmt::print("  {}\n", vic::to_hex_string(&packet,
-    // 1));
+    // packet.hdr.un.echo.id); fmt::print("  {}\n", vic::to_hex_string(&packet, 1));
     auto start_timepoint = std::chrono::steady_clock::now();
     socket.send_object(packet);
 
@@ -261,9 +249,7 @@ std::optional<double_milliseconds> ping(const std::string & address,
             {
                 return duration;
             }
-            fmt::print(
-                "  warning unrelated message received of {} bytes with id {}.\n",
-                data_received.size(), data.hdr.un.echo.id);
+            fmt::print("  warning unrelated message received of {} bytes with id {}.\n", data_received.size(), data.hdr.un.echo.id);
             continue;
         }
         fmt::print("  warning unrelated message received of {} bytes.\n", data_received.size());
@@ -296,8 +282,7 @@ int main(int argc, char * argv[])
         }
         else
         {
-            fmt::print("ping from {} timed out, no response after {}.\n", address,
-                       timeout);
+            fmt::print("ping from {} timed out, no response after {}.\n", address, timeout);
         }
     }
 }
