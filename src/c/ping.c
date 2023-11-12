@@ -47,6 +47,25 @@ const char * to_hex_string(const void * object, int size)
     return &buffer[0];
 }
 
+// Resolves the reverse lookup of the hostname
+bool reverse_dns_lookup(const char * ipaddress, char * name_out, int size)
+{
+    struct sockaddr_in addr;
+    bzero(&addr, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = inet_addr(ipaddress);
+
+    char buffer[NI_MAXHOST];
+    if (getnameinfo((struct sockaddr *)&addr, sizeof(struct sockaddr_in), buffer, sizeof(buffer), NULL, 0, NI_NAMEREQD))
+    {
+        printf("Could not resolve reverse lookup of hostname\n");
+        return false;
+    }
+
+    strncpy(name_out, &buffer[0], size);
+    return true;
+}
+
 // you can choose to send more or less dummy payload data
 #define ICMP_PAYLOAD_LENGTH (64 - sizeof(struct icmphdr))
 struct ping_pkt
@@ -88,9 +107,12 @@ const char * dns_lookup_and_store_address(const char * address, struct sockaddr_
     }
     const char * name = inet_ntoa(*(struct in_addr *)host_entity->h_addr_list[0]);
     strncpy(buffer, name, sizeof(buffer));
-    sock_addr->sin_family = host_entity->h_addrtype;
-    sock_addr->sin_port = htons(port);
-    sock_addr->sin_addr.s_addr = *(long *)host_entity->h_addr_list[0];
+    if (sock_addr != NULL)
+    {
+        sock_addr->sin_family = host_entity->h_addrtype;
+        sock_addr->sin_port = htons(port);
+        sock_addr->sin_addr.s_addr = *(long *)host_entity->h_addr_list[0];
+    }
     return &buffer[0];
 }
 
@@ -252,22 +274,27 @@ int main(int argc, char * argv[])
 {
     if (argc < 2)
     {
-        printf("usage: ping_test <address>\n\n");
+        printf("usage: ping_test <host>\n\n");
         return -1;
     }
 
-    const char * address = argv[1];
-    printf("PING %s.\n", address);
+    const char * host = argv[1];
+    const char * address = dns_lookup_and_store_address(host, NULL);
+
+    char name[1024];
+    bzero(&name[0], sizeof(name));
+    reverse_dns_lookup(address, name, sizeof(name));
+    printf("PING %s. (%s)\n", address, name);
 
     int status_code = 0;
-    const int timeout = 2500; // ms
+    const int timeout_ms = 2500;
     for (int i = 0; i < 4; ++i)
     {
         double duration = 0.0;
-        int result = icmp_ping(address, timeout, &duration);
+        int result = icmp_ping(host, timeout_ms, &duration);
         if (result == -2)
         {
-            printf("ping from %s timed out, no response after %dms.\n", address, timeout);
+            printf("ping from %s timed out, no response after %dms.\n", address, timeout_ms);
             status_code = -2;
             continue;
         }

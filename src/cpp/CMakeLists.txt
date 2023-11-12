@@ -1,4 +1,5 @@
-project(ping)
+cmake_policy(SET CMP0048 NEW)
+project(ping VERSION 1.2)
 
 cmake_minimum_required(VERSION 3.14 FATAL_ERROR)
 

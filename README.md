@@ -21,6 +21,8 @@ these are the highlevel steps involed:
 - if the Id byte is not a match, wait for another packet if the timeout was not reached yet
 - print the result
 
+Note: because we use raw sockets we will see a 20-byte ip-header prefixed to the ICMP Reply.
+
 
 more information:
 - https://en.wikipedia.org/wiki/Internet_Control_Message_Protocol
