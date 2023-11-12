@@ -51,7 +51,7 @@ struct ping_pkt
     char payload[icmp_payload_length];
 };
 
-unsigned short checksum(const ping_pkt & packet)
+unsigned short calculate_checksum(const ping_pkt & packet)
 {
     auto * view = reinterpret_cast<const unsigned short *>(&packet);
     auto size = sizeof(ping_pkt);
@@ -192,7 +192,7 @@ ping_pkt make_icmp_packet()
     {
         icmp_packet.payload[i] = static_cast<char>('0' + i);
     }
-    icmp_packet.hdr.checksum = checksum(icmp_packet);
+    icmp_packet.hdr.checksum = calculate_checksum(icmp_packet);
     return icmp_packet;
 }
 

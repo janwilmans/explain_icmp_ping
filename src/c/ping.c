@@ -17,6 +17,16 @@
 #include <time.h>
 #include <unistd.h>
 
+// the reason for this method is that bzero() is not standard C11 and I really
+// do not like the fact that messing up the order of arguments to 'memset' to zero out memory
+// can cause serious bugs. I would like memset_explicit even more, but C23 isn't available to me at this like
+void zero_inititialize(void * data, int size)
+{
+    memset(data, 0, size);
+}
+
+// this will convert any binary data into a readable ascii form
+// unprintable ascii characters are coverted to dots
 const char * to_hex_string(const void * object, int size)
 {
     const char * data = (const char *)object;
@@ -47,11 +57,11 @@ const char * to_hex_string(const void * object, int size)
     return &buffer[0];
 }
 
-// Resolves the reverse lookup of the hostname
+// lookup the dns-name of associated with an ipaddress
 bool reverse_dns_lookup(const char * ipaddress, char * name_out, int size)
 {
     struct sockaddr_in addr;
-    bzero(&addr, sizeof(addr));
+    zero_inititialize(&addr, sizeof(addr));
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = inet_addr(ipaddress);
 
@@ -74,7 +84,7 @@ struct ping_pkt
     char payload[ICMP_PAYLOAD_LENGTH];
 };
 
-unsigned short checksum(const struct ping_pkt * packet)
+unsigned short calculate_checksum(const struct ping_pkt * packet)
 {
     const unsigned short * view = (const unsigned short *)packet;
     size_t size = sizeof(struct ping_pkt);
@@ -97,7 +107,7 @@ const char * dns_lookup_and_store_address(const char * address, struct sockaddr_
 {
     static char buffer[1024];
 
-    bzero(&buffer, sizeof(buffer));
+    zero_inititialize(&buffer, sizeof(buffer));
     const uint16_t port = 0;
     struct hostent * host_entity = gethostbyname(address);
     if (host_entity == NULL)
@@ -126,7 +136,7 @@ int set_receive_timeout(int socket_fd, int timeout_ms)
     int seconds = timeout_ms / 1000;
     int useconds = (timeout_ms - (seconds * 1000)) * 1000;
     struct timeval tv_out;
-    bzero(&tv_out, sizeof(tv_out));
+    zero_inititialize(&tv_out, sizeof(tv_out));
     tv_out.tv_sec = seconds;
     tv_out.tv_usec = useconds;
     return setsockopt(socket_fd, SOL_SOCKET, SO_RCVTIMEO, &tv_out, sizeof(tv_out));
@@ -134,7 +144,7 @@ int set_receive_timeout(int socket_fd, int timeout_ms)
 
 void initialize_icmp_packet(struct ping_pkt * icmp_packet)
 {
-    bzero(icmp_packet, sizeof(*icmp_packet));
+    zero_inititialize(icmp_packet, sizeof(*icmp_packet));
     icmp_packet->hdr.type = ICMP_ECHO;
     icmp_packet->hdr.un.echo.id = getpid();
     icmp_packet->hdr.un.echo.sequence = 0;
@@ -146,7 +156,7 @@ void initialize_icmp_packet(struct ping_pkt * icmp_packet)
     {
         icmp_packet->payload[i] = (char)('0' + i);
     }
-    icmp_packet->hdr.checksum = checksum(icmp_packet);
+    icmp_packet->hdr.checksum = calculate_checksum(icmp_packet);
 }
 
 int icmp_send(int socket_fd, struct sockaddr_in * address, const void * data, size_t size)
@@ -192,7 +202,7 @@ double get_difference_ms(const struct timespec * t1, const struct timespec * t2)
 int icmp_ping(const char * address, int timeout_ms, double * duration_ms)
 {
     struct sockaddr_in sock_addr;
-    bzero(&sock_addr, sizeof(sock_addr));
+    zero_inititialize(&sock_addr, sizeof(sock_addr));
     const char * name = dns_lookup_and_store_address(address, &sock_addr);
     if (name == NULL)
     {
@@ -282,7 +292,7 @@ int main(int argc, char * argv[])
     const char * address = dns_lookup_and_store_address(host, NULL);
 
     char name[1024];
-    bzero(&name[0], sizeof(name));
+    zero_inititialize(&name[0], sizeof(name));
     reverse_dns_lookup(address, name, sizeof(name));
     printf("PING %s. (%s)\n", address, name);
 
