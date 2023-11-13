@@ -51,7 +51,7 @@ struct ping_pkt
     char payload[icmp_payload_length];
 };
 
-unsigned short calculate_checksum(const ping_pkt & packet)
+[[nodiscard]] unsigned short calculate_checksum(const ping_pkt & packet)
 {
     auto * view = reinterpret_cast<const unsigned short *>(&packet);
     auto size = sizeof(ping_pkt);
@@ -72,7 +72,7 @@ unsigned short calculate_checksum(const ping_pkt & packet)
 class icmp_socket
 {
 public:
-    icmp_socket(std::string address) :
+    explicit icmp_socket(std::string address) :
         m_address(address)
     {
         dns_lookup_and_store_address();
@@ -133,7 +133,7 @@ public:
         }
     }
 
-    std::vector<char> receive(size_t bytes)
+    [[nodiscard]] std::vector<char> receive(size_t bytes)
     {
         m_receive_buffer.resize(bytes);
         auto bytes_received = recvfrom(m_socket_fd, &m_receive_buffer[0], m_receive_buffer.size(), 0, nullptr, nullptr);
@@ -145,7 +145,7 @@ public:
         return m_receive_buffer;
     }
 
-    void send(const void * data, size_t size)
+    void send(const void * data, size_t size) const
     {
         auto result = ::sendto(m_socket_fd, data, size, 0, (sockaddr *)&m_sockaddr_in, sizeof(m_sockaddr_in));
         if (result <= 0)
@@ -155,7 +155,7 @@ public:
     }
 
     template <typename T>
-    T get_received_data(size_t offset)
+    [[nodiscard]] T get_received_data(size_t offset) const
     {
         T result;
         std::memcpy(&result, &m_receive_buffer[offset], sizeof(T));
@@ -163,14 +163,14 @@ public:
     }
 
     template <typename T>
-    void send_object(const T & object)
+    void send_object(const T & object) const
     {
         send(&object, sizeof(object));
     }
 
-    int get_fd() const { return m_socket_fd; }
-    std::string get_name() const { return m_name; }
-    sockaddr_in get_sockadd_in() { return m_sockaddr_in; }
+    [[nodiscard]] int get_fd() const { return m_socket_fd; }
+    [[nodiscard]] std::string get_name() const { return m_name; }
+    [[nodiscard]] sockaddr_in get_sockadd_in() const { return m_sockaddr_in; }
 
     sockaddr_in m_sockaddr_in{};
     int m_socket_fd;
@@ -179,7 +179,7 @@ public:
     std::vector<char> m_receive_buffer;
 };
 
-ping_pkt make_icmp_packet()
+[[nodiscard]] ping_pkt make_icmp_packet()
 {
     ping_pkt icmp_packet = {};
     icmp_packet.hdr.type = ICMP_ECHO;
@@ -198,7 +198,7 @@ ping_pkt make_icmp_packet()
 
 // when sending icmp ping packets using raw sockets verifing the echo.id is
 // required otherwise you maybe looking at unrelated ping replys
-bool verify_reply(const ping_pkt & sent, const ping_pkt & received, int expected_id)
+[[nodiscard]] bool verify_reply(const ping_pkt & sent, const ping_pkt & received, int expected_id)
 {
     if (received.hdr.type != ICMP_ECHOREPLY)
     {
@@ -219,7 +219,7 @@ bool verify_reply(const ping_pkt & sent, const ping_pkt & received, int expected
     return true;
 }
 
-std::optional<double_milliseconds> ping(const std::string & address, std::chrono::milliseconds timeout)
+[[nodiscard]] std::optional<double_milliseconds> ping(const std::string & address, std::chrono::milliseconds timeout)
 {
     auto deadline = std::chrono::steady_clock::now() + timeout;
     icmp_socket socket(address);
