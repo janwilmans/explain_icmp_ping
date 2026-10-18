@@ -21,6 +21,32 @@ FetchContent_Declare(docopt
 FetchContent_MakeAvailable(fmt)
 FetchContent_MakeAvailable(docopt)
 
+add_compile_options(
+    -Wall
+    -Wextra
+    -pedantic
+    -Wcast-align
+    -Wno-error=sign-conversion
+    -Wno-error=conversion
+    -Wformat=2
+    -Wmisleading-indentation
+    -Wmissing-include-dirs
+    -Wnull-dereference
+    -Wswitch-enum
+    -Wunused
+    -Wunused-variable
+    -Wunused-parameter
+    -Wvla
+    -Werror=double-promotion
+#   -Werror=sign-conversion
+#   -Werror=conversion    
+    -Werror
+    # Warnings that are not allowed in C compilation units
+    $<$<COMPILE_LANGUAGE:CXX>:-Wnon-virtual-dtor>
+    $<$<COMPILE_LANGUAGE:CXX>:-Woverloaded-virtual>
+    $<$<COMPILE_LANGUAGE:CXX>:-Werror=suggest-override>
+)
+
 add_executable(ping
     network.cpp
     ping.cpp
