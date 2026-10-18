@@ -10,6 +10,7 @@
 #include <unistd.h>
 
 #include <chrono>
+#include <cstring>
 #include <fmt/chrono.h>
 #include <fmt/core.h>
 #include <optional>
@@ -67,7 +68,7 @@ struct ping_pkt
     }
     sum = (sum >> 16) + (sum & 0xFFFF);
     sum += (sum >> 16);
-    return ~sum;
+    return static_cast<unsigned short>(~sum);
 }
 class icmp_socket
 {
@@ -100,9 +101,9 @@ public:
         }
         m_name = inet_ntoa(*(struct in_addr *)host_entity->h_addr);
 
-        m_sockaddr_in.sin_family = host_entity->h_addrtype;
+        m_sockaddr_in.sin_family = static_cast<sa_family_t>(host_entity->h_addrtype);
         m_sockaddr_in.sin_port = htons(port);
-        m_sockaddr_in.sin_addr.s_addr = *(long *)host_entity->h_addr;
+        std::memcpy(&m_sockaddr_in.sin_addr, host_entity->h_addr, sizeof(m_sockaddr_in.sin_addr));
     }
 
     template <typename T>
@@ -121,15 +122,14 @@ public:
 
     void set_receive_timeout(std::chrono::milliseconds timeout)
     {
-        int total_ms = timeout.count();
-        int seconds = total_ms / 1000;
-        int useconds = (total_ms - (seconds * 1000)) * 1000;
+        const auto seconds = std::chrono::duration_cast<std::chrono::seconds>(timeout);
+        const auto useconds = std::chrono::duration_cast<std::chrono::microseconds>(timeout - seconds);
         timeval tv_out{};
-        tv_out.tv_sec = seconds;
-        tv_out.tv_usec = useconds;
+        tv_out.tv_sec = static_cast<time_t>(seconds.count());
+        tv_out.tv_usec = static_cast<suseconds_t>(useconds.count());
         if (!set_socket_option(SOL_SOCKET, SO_RCVTIMEO, tv_out))
         {
-            throw std::runtime_error(fmt::format("could not set receive timeout to '{}'ms", total_ms));
+            throw std::runtime_error(fmt::format("could not set receive timeout to '{}'ms", timeout.count()));
         }
     }
 
@@ -141,7 +141,7 @@ public:
         {
             return {}; // return empty meaning, we received no reply within the timeout
         }
-        m_receive_buffer.resize(bytes_received);
+        m_receive_buffer.resize(static_cast<size_t>(bytes_received));
         return m_receive_buffer;
     }
 
@@ -183,7 +183,7 @@ public:
 {
     ping_pkt icmp_packet = {};
     icmp_packet.hdr.type = ICMP_ECHO;
-    icmp_packet.hdr.un.echo.id = getpid();
+    icmp_packet.hdr.un.echo.id = static_cast<uint16_t>(getpid());
     icmp_packet.hdr.un.echo.sequence = 0;
 
     // the payload is arbitrary, it can be any data but it is good practice to send some recognizable string.
@@ -225,7 +225,7 @@ public:
     icmp_socket socket(address);
     socket.set_TTL(64);
     socket.set_receive_timeout(timeout);
-    const uint16_t my_icmp_id = getpid();
+    const auto my_icmp_id = static_cast<uint16_t>(getpid());
     const int ip_header_length = 20;
     const int raw_icmp_response_length = ip_header_length + sizeof(ping_pkt);
 
