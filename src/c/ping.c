@@ -217,13 +217,13 @@ int icmp_ping(const char * address, int timeout_ms, double * duration_ms)
 
     if (set_ttl(socket_fd, 64) != 0)
     {
-        printf("ttl for icmp_socket to '%s' could not be set.\n");
+        printf("ttl for icmp_socket to '%s' could not be set.\n", address);
         close(socket_fd);
         return -1;
     }
     if (set_receive_timeout(socket_fd, timeout_ms) != 0)
     {
-        printf("timeout for icmp_socket to '%s' could not be set.\n");
+        printf("timeout for icmp_socket to '%s' could not be set.\n", address);
         close(socket_fd);
         return -1;
     }

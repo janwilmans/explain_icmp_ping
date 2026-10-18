@@ -17,6 +17,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <vector>
 
 std::string dns_lookup(const std::string & hostname)
 {
